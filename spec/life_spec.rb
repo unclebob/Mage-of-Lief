@@ -1,40 +1,44 @@
 require 'spec'
 
-describe "Life Rules" do
-  context "Already Living" do
-    ALL_NEIGHBORS = (0..8).to_a
-    STAYS_LIVING_NEIGHBOR_COUNTS = [2, 3]
-    STOPS_LIVING_NEIGHBOR_COUNTS = ALL_NEIGHBORS - STAYS_LIVING_NEIGHBOR_COUNTS
+ALL_NEIGHBORS = (0..8).to_a
+STAYS_LIVING_NEIGHBOR_COUNTS = [2, 3]
+STARTS_LIVING_NEIGHBOR_COUNTS = [3]
+STAYS_DEAD_NEIGHBOR_COUNTS = ALL_NEIGHBORS-STARTS_LIVING_NEIGHBOR_COUNTS
+TRANSITION_MAP = {:alive => STAYS_LIVING_NEIGHBOR_COUNTS, :dead => STAYS_DEAD_NEIGHBOR_COUNTS}
 
-    def stays_alive?(neighbor_count)
-      STAYS_LIVING_NEIGHBOR_COUNTS.include? neighbor_count
-    end
+def the_other(state)
+  state == :alive ? :dead : :alive
+end
 
-    {STOPS_LIVING_NEIGHBOR_COUNTS => false, STAYS_LIVING_NEIGHBOR_COUNTS => true}.each_pair do |neighbor_counts, does_live|
-      neighbor_counts.each do |neighbor_count|
-        context "#{neighbor_count} neighbors" do
-          it "#{does_live ? 'lives' : 'dies'}" do
-            stays_alive?(neighbor_count).should == does_live
-          end
-        end
-      end
-    end
+def transition(state, neighbor_count)
+  TRANSITION_MAP[state].include?(neighbor_count) ? state : the_other(state)
+end
 
+Spec::Matchers.define :transition do
+  match do |actual|
+    state, neighbor_count = actual
+    transition(state, neighbor_count) == (state == :alive ? :dead : :alive)
   end
-  context "Already Dead" do
-    STARTS_LIVING_NEIGHBOR_COUNTS = [3]
-    STAYS_DEAD_NEIGHBOR_COUNTS = ALL_NEIGHBORS-STARTS_LIVING_NEIGHBOR_COUNTS
-    def stays_dead?(neighbor_count)
-      STAYS_DEAD_NEIGHBOR_COUNTS.include? neighbor_count
-    end
-    {STAYS_DEAD_NEIGHBOR_COUNTS => true, STARTS_LIVING_NEIGHBOR_COUNTS => false}.each_pair do |neighbor_counts, stays_dead|
-      neighbor_counts.each do |neighbor_count|
-        context "#{neighbor_count} neighbors" do
-          it "#{stays_dead ? 'stays dead' : 'is born'}" do
-            stays_dead?(neighbor_count).should == stays_dead
+end
+
+
+describe "Life Rules" do
+  {:dead => STAYS_DEAD_NEIGHBOR_COUNTS, :alive => STAYS_LIVING_NEIGHBOR_COUNTS}.each_pair do |state, neighbor_counts_that_do_not_transition|
+    context state do
+      neighbor_counts_that_do_not_transition.each do |neighbor_count|
+        context "#{neighbor_counts_that_do_not_transition} neighbors" do
+          it "does not transition" do
+            [state, neighbor_count].should_not transition
           end
         end
       end
-    end 
+      (ALL_NEIGHBORS - neighbor_counts_that_do_not_transition).each do |neighbor_count|
+        context "#{neighbor_counts_that_do_not_transition} neighbors" do
+          it "does transition" do
+            [state, neighbor_count].should transition
+          end
+        end
+      end
+    end
   end
 end
